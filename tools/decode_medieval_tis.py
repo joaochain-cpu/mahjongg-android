@@ -61,14 +61,16 @@ def main():
         if len(planes) != PIXEL_BYTES:
             raise RuntimeError(f"Tile {i} is truncated")
         pixels = []
+        # TIS stores four 1-bit planes interleaved within each 48-pixel scanline:
+        # 4 planes × 6 bytes per plane × 60 rows = 1440 bytes.
         for y in range(TILE_H):
+            row = planes[y * 24:(y + 1) * 24]
             for x in range(TILE_W):
-                bit_index = y * TILE_W + x
-                byte_index, bit = divmod(bit_index, 8)
-                mask = 1 << (7 - bit)
+                byte_index = x // 8
+                mask = 1 << (7 - (x % 8))
                 idx = 0
                 for plane in range(4):
-                    if planes[plane * 360 + byte_index] & mask:
+                    if row[plane * 6 + byte_index] & mask:
                         idx |= 1 << plane
                 pixels.append(palette[idx])
         image = Image.new("RGBA", (TILE_W, TILE_H))
