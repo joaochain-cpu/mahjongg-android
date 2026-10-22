@@ -72,19 +72,20 @@ private fun layout(): List<Spot> {
     MaterialTheme {
         BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF000080))) {
             val w=constraints.maxWidth.toFloat(); val h=constraints.maxHeight.toFloat()
-            val tw=minOf(w/15.5f,h/8.2f); val th=tw*1.28f
+            val tw=w/15.5f; val th=tw*1.28f
             val left=(w-tw*14)/2f
+            val boardTop=th*1.55f
             Canvas(Modifier.fillMaxSize().pointerInput(tiles,gone,selected,tw,th){detectTapGestures { p ->
                 tiles.sortedBy { it.spot.z }.asReversed().firstOrNull { t ->
                     t.id !in gone && p.x>=left+t.spot.x*tw+t.spot.z*tw*.12f && p.x<=left+(t.spot.x+1)*tw+t.spot.z*tw*.12f &&
-                    p.y>=t.spot.y*th*.75f-t.spot.z*th*.12f && p.y<=(t.spot.y*.75f*th+th-t.spot.z*th*.12f)
+                    p.y>=boardTop+t.spot.y*th*.75f-t.spot.z*th*.12f && p.y<=boardTop+(t.spot.y*.75f*th+th-t.spot.z*th*.12f)
                 }?.let { tap(it.id) }
             }}) {
                 val c=drawContext.canvas.nativeCanvas
                 val p=Paint(Paint.ANTI_ALIAS_FLAG)
                 tiles.sortedWith(compareBy<Tile>{it.spot.z}.thenBy{it.spot.y}.thenBy{it.spot.x}).forEach { t ->
                     if(t.id in gone)return@forEach
-                    val x=left+t.spot.x*tw+t.spot.z*tw*.12f; val y=t.spot.y*th*.75f-t.spot.z*th*.12f
+                    val x=left+t.spot.x*tw+t.spot.z*tw*.12f; val y=boardTop+t.spot.y*th*.75f-t.spot.z*th*.12f
                     p.color=android.graphics.Color.rgb(35,40,52); c.drawRoundRect(RectF(x+tw*.09f,y+th*.07f,x+tw*1.08f,y+th*1.08f),3f,3f,p)
                     p.color=if(t.id==selected) android.graphics.Color.YELLOW else android.graphics.Color.rgb(176,184,188)
                     c.drawRect(x-1,y-1,x+tw+1,y+th+1,p)
@@ -99,9 +100,9 @@ private fun layout(): List<Spot> {
                     if(!free(t)){p.color=android.graphics.Color.argb(28,0,0,0);c.drawRect(x,y,x+tw,y+th,p)}
                 }
             }
-            Column(Modifier.align(Alignment.CenterStart).padding(start=8.dp)){Text("Tiles Left:",color=Color.White,fontSize=12.sp,fontFamily=FontFamily.Serif,fontWeight=FontWeight.Bold);Text("${144-gone.size}",color=Color.White,fontSize=12.sp,fontFamily=FontFamily.Serif)}
-            Column(Modifier.align(Alignment.CenterEnd).padding(end=8.dp,top=28.dp)){Text("Time:",color=Color.White,fontSize=12.sp,fontFamily=FontFamily.Serif,fontWeight=FontWeight.Bold);Text("%d:%02d".format(secs/60,secs%60),color=Color.White,fontSize=12.sp,fontFamily=FontFamily.Serif)}
-            Row(Modifier.align(Alignment.TopCenter),verticalAlignment=Alignment.CenterVertically){Text("MAH JONGG",color=Color(0xFFB8C6FF),fontSize=12.sp,fontFamily=FontFamily.Serif,fontWeight=FontWeight.Bold);TextButton(onClick={sound=!sound}){Text(if(sound)"Sound On" else "Sound Off",color=Color.White,fontSize=9.sp)};TextButton(onClick={reset()}){Text("New Game",color=Color.White,fontSize=9.sp)}}
+            Column(Modifier.align(Alignment.TopStart).padding(start=8.dp,top=38.dp)){Text("Tiles Left:",color=Color.White,fontSize=12.sp,fontFamily=FontFamily.Serif,fontWeight=FontWeight.Bold);Text("${144-gone.size}",color=Color.White,fontSize=12.sp,fontFamily=FontFamily.Serif)}
+            Column(Modifier.align(Alignment.TopEnd).padding(end=8.dp,top=38.dp)){Text("Time:",color=Color.White,fontSize=12.sp,fontFamily=FontFamily.Serif,fontWeight=FontWeight.Bold);Text("%d:%02d".format(secs/60,secs%60),color=Color.White,fontSize=12.sp,fontFamily=FontFamily.Serif)}
+            Row(Modifier.align(Alignment.TopCenter),verticalAlignment=Alignment.CenterVertically){Text("MAH JONGG",color=Color(0xFFB8C6FF),fontSize=12.sp,fontFamily=FontFamily.Serif,fontWeight=FontWeight.Bold);TextButton(onClick={sound=!sound}){Text(if(sound)"Sound On" else "Sound Off",color=Color.White,fontSize=9.sp)};TextButton(onClick={reset()}){Text("New Game",color=Color.White,fontSize=9.sp)}; TextButton(onClick={ val first=tiles.firstOrNull{it.id !in gone && free(it)}; if(first!=null){selected=first.id; message="Pair hint: find matching symbol"} }){Text("Hint",color=Color.White,fontSize=9.sp)}}
             if(message.isNotEmpty())Text(message,Modifier.align(Alignment.BottomCenter),color=Color.White,fontSize=12.sp)
         }
     }
