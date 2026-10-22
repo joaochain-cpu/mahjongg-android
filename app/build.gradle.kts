@@ -19,3 +19,11 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.foundation:foundation")
 }
+
+val generateMedievalTiles by tasks.registering(Exec::class) {
+    workingDir(rootProject.projectDir)
+    commandLine("bash", "-lc", "python3 -m pip install --quiet Pillow && python3 tools/decode_medieval_tis.py")
+}
+tasks.named("preBuild").configure {
+    dependsOn(generateMedievalTiles)
+}
