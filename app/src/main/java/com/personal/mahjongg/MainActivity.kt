@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlin.math.abs
+import kotlin.math.min
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -50,6 +51,7 @@ private fun layout(): List<Spot> {
     var secs by remember { mutableIntStateOf(0) }
     var sound by remember { mutableStateOf(true) }
     var message by remember { mutableStateOf("") }
+    var zoom by remember { mutableStateOf(true) }
     LaunchedEffect(gone.size) { while (gone.size < 144) { delay(1000); secs++ } }
     fun beep() { if(sound) try { ToneGenerator(AudioManager.STREAM_MUSIC,35).startTone(ToneGenerator.TONE_PROP_BEEP,50) } catch (_:Exception) {} }
     fun free(t: Tile): Boolean {
@@ -89,15 +91,42 @@ private fun layout(): List<Spot> {
                     p.color=android.graphics.Color.rgb(35,40,52); c.drawRoundRect(RectF(x+tw*.09f,y+th*.07f,x+tw*1.08f,y+th*1.08f),3f,3f,p)
                     p.color=if(t.id==selected) android.graphics.Color.YELLOW else android.graphics.Color.rgb(176,184,188)
                     c.drawRect(x-1,y-1,x+tw+1,y+th+1,p)
-                    p.color=android.graphics.Color.rgb(210,211,205);c.drawRect(x,y,x+tw,y+th,p)
-                    p.color=android.graphics.Color.rgb(245,241,220);c.drawRect(x+tw*.09f,y+th*.05f,x+tw*.91f,y+th*.95f,p)
-                    p.color=android.graphics.Color.rgb(62+(t.art*19)%100,42+(t.art*13)%80,30+(t.art*7)%70)
+                    p.color=android.graphics.Color.rgb(202,202,190);c.drawRect(x,y,x+tw,y+th,p)
+                    p.color=android.graphics.Color.rgb(238,234,215);c.drawRect(x+tw*.07f,y+th*.035f,x+tw*.93f,y+th*.965f,p)
+                    p.color=android.graphics.Color.rgb(232,225,199);c.drawRect(x+tw*.09f,y+th*.05f,x+tw*.91f,y+th*.95f,p)
+                    p.color=heraldicColor(t.art)
                     p.style=Paint.Style.STROKE;p.strokeWidth=tw*.055f;c.drawRect(x+tw*.16f,y+th*.12f,x+tw*.84f,y+th*.88f,p);p.style=Paint.Style.FILL
                     p.textAlign=Paint.Align.CENTER;p.typeface=android.graphics.Typeface.create("serif",android.graphics.Typeface.BOLD);p.textSize=tw*.44f
                     val symbols=listOf("♜","♞","♖","♘","⚔","♛","♚","♝","✠","⚜","♙")
                     c.drawText(symbols[t.art%symbols.size],x+tw/2,y+th*.60f,p)
                     p.textSize=tw*.13f;c.drawText("%02d".format(t.art+1),x+tw/2,y+th*.82f,p)
                     if(!free(t)){p.color=android.graphics.Color.argb(28,0,0,0);c.drawRect(x,y,x+tw,y+th,p)}
+                }
+                // Zoom lens for the selected tile.
+                val chosen = tiles.firstOrNull { it.id == selected && it.id !in gone }
+                if (zoom && chosen != null) {
+                    val lensW = min(w * .42f, 260f)
+                    val lensH = lensW * 1.12f
+                    val lx = (w - lensW) / 2f
+                    val ly = h * .39f
+                    p.style = Paint.Style.FILL
+                    p.color = android.graphics.Color.argb(238, 20, 24, 37)
+                    c.drawRoundRect(RectF(lx-8,ly-8,lx+lensW+8,ly+lensH+8),12f,12f,p)
+                    p.color = android.graphics.Color.rgb(188,188,174)
+                    c.drawRect(lx,ly,lx+lensW,ly+lensH,p)
+                    p.color = android.graphics.Color.rgb(239,233,211)
+                    c.drawRect(lx+8,ly+8,lx+lensW-8,ly+lensH-8,p)
+                    p.color = heraldicColor(chosen.art)
+                    p.style = Paint.Style.STROKE
+                    p.strokeWidth = 6f
+                    c.drawRect(lx+18,ly+18,lx+lensW-18,ly+lensH-18,p)
+                    p.style = Paint.Style.FILL
+                    p.textAlign = Paint.Align.CENTER
+                    p.typeface = android.graphics.Typeface.create("serif",android.graphics.Typeface.BOLD)
+                    p.textSize = lensW*.44f
+                    c.drawText(symbolsFor(chosen.art),lx+lensW/2,ly+lensH*.63f,p)
+                    p.textSize = lensW*.075f
+                    c.drawText("ZOOM • tap another tile",lx+lensW/2,ly+lensH*.91f,p)
                 }
             }
             Column(Modifier.align(Alignment.TopStart).padding(start=8.dp,top=38.dp)){Text("Tiles Left:",color=Color.White,fontSize=12.sp,fontFamily=FontFamily.Serif,fontWeight=FontWeight.Bold);Text("${144-gone.size}",color=Color.White,fontSize=12.sp,fontFamily=FontFamily.Serif)}
@@ -107,6 +136,8 @@ private fun layout(): List<Spot> {
         }
     }
 }
+private fun heraldicColor(art:Int):Int = intArrayOf(0xFF633E2E.toInt(),0xFF7B3345.toInt(),0xFF4F6044.toInt(),0xFF8A6236.toInt(),0xFF4D3D5B.toInt(),0xFF6D6A52.toInt())[art%6]
+private fun symbolsFor(art:Int):String = listOf("♜","♞","♖","♘","⚔","♛","♚","♝","✠","⚜","♙","♕","♖","♘")[art%14]
 private fun deal(spots:List<Spot>):List<Tile>{
     val pairs=(0 until spots.size/2).flatMap{listOf(it,it)}.shuffled()
     return spots.mapIndexed{i,s->Tile(i,pairs[i],pairs[i]%44,s)}
