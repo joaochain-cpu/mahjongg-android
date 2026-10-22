@@ -1,6 +1,8 @@
 package com.personal.mahjongg
 
 import android.graphics.Paint
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.RectF
 import android.media.AudioManager
 import android.media.ToneGenerator
@@ -18,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -44,6 +47,11 @@ private fun layout(): List<Spot> {
     return a.take(144)
 }
 @Composable private fun Game() {
+    val context = LocalContext.current
+    val tileBitmaps = remember(context) { (0 until 44).associateWith { art ->
+        val id = context.resources.getIdentifier("medieval_%02d".format(art), "drawable", context.packageName)
+        if (id != 0) BitmapFactory.decodeResource(context.resources, id) else null
+    } }
     val spots = remember { layout() }
     var tiles by remember { mutableStateOf(deal(spots)) }
     var gone by remember { mutableStateOf(setOf<Int>()) }
@@ -94,12 +102,15 @@ private fun layout(): List<Spot> {
                     p.color=android.graphics.Color.rgb(202,202,190);c.drawRect(x,y,x+tw,y+th,p)
                     p.color=android.graphics.Color.rgb(238,234,215);c.drawRect(x+tw*.07f,y+th*.035f,x+tw*.93f,y+th*.965f,p)
                     p.color=android.graphics.Color.rgb(232,225,199);c.drawRect(x+tw*.09f,y+th*.05f,x+tw*.91f,y+th*.95f,p)
-                    p.color=heraldicColor(t.art)
-                    p.style=Paint.Style.STROKE;p.strokeWidth=tw*.055f;c.drawRect(x+tw*.16f,y+th*.12f,x+tw*.84f,y+th*.88f,p);p.style=Paint.Style.FILL
-                    p.textAlign=Paint.Align.CENTER;p.typeface=android.graphics.Typeface.create("serif",android.graphics.Typeface.BOLD);p.textSize=tw*.44f
-                    val symbols=listOf("♜","♞","♖","♘","⚔","♛","♚","♝","✠","⚜","♙")
-                    c.drawText(symbols[t.art%symbols.size],x+tw/2,y+th*.60f,p)
-                    p.textSize=tw*.13f;c.drawText("%02d".format(t.art+1),x+tw/2,y+th*.82f,p)
+                    val originalArt = tileBitmaps[t.art]
+                    if (originalArt != null) {
+                        c.drawBitmap(originalArt, null, RectF(x+tw*.08f,y+th*.05f,x+tw*.92f,y+th*.95f), p)
+                    } else {
+                        p.color=heraldicColor(t.art)
+                        p.style=Paint.Style.STROKE;p.strokeWidth=tw*.055f;c.drawRect(x+tw*.16f,y+th*.12f,x+tw*.84f,y+th*.88f,p);p.style=Paint.Style.FILL
+                        p.textAlign=Paint.Align.CENTER;p.typeface=android.graphics.Typeface.create("serif",android.graphics.Typeface.BOLD);p.textSize=tw*.44f
+                        c.drawText(symbolsFor(t.art),x+tw/2,y+th*.60f,p)
+                    }
                     if(!free(t)){p.color=android.graphics.Color.argb(28,0,0,0);c.drawRect(x,y,x+tw,y+th,p)}
                 }
                 // Zoom lens for the selected tile.
@@ -116,16 +127,22 @@ private fun layout(): List<Spot> {
                     c.drawRect(lx,ly,lx+lensW,ly+lensH,p)
                     p.color = android.graphics.Color.rgb(239,233,211)
                     c.drawRect(lx+8,ly+8,lx+lensW-8,ly+lensH-8,p)
-                    p.color = heraldicColor(chosen.art)
-                    p.style = Paint.Style.STROKE
-                    p.strokeWidth = 6f
-                    c.drawRect(lx+18,ly+18,lx+lensW-18,ly+lensH-18,p)
-                    p.style = Paint.Style.FILL
-                    p.textAlign = Paint.Align.CENTER
-                    p.typeface = android.graphics.Typeface.create("serif",android.graphics.Typeface.BOLD)
-                    p.textSize = lensW*.44f
-                    c.drawText(symbolsFor(chosen.art),lx+lensW/2,ly+lensH*.63f,p)
+                    val zoomArt = tileBitmaps[chosen.art]
+                    if (zoomArt != null) {
+                        c.drawBitmap(zoomArt, null, RectF(lx+10,ly+10,lx+lensW-10,ly+lensH-10), p)
+                    } else {
+                        p.color = heraldicColor(chosen.art)
+                        p.style = Paint.Style.STROKE
+                        p.strokeWidth = 6f
+                        c.drawRect(lx+18,ly+18,lx+lensW-18,ly+lensH-18,p)
+                        p.style = Paint.Style.FILL
+                        p.textAlign = Paint.Align.CENTER
+                        p.typeface = android.graphics.Typeface.create("serif",android.graphics.Typeface.BOLD)
+                        p.textSize = lensW*.44f
+                        c.drawText(symbolsFor(chosen.art),lx+lensW/2,ly+lensH*.63f,p)
+                    }
                     p.textSize = lensW*.075f
+                    p.color = android.graphics.Color.WHITE
                     c.drawText("ZOOM • tap another tile",lx+lensW/2,ly+lensH*.91f,p)
                 }
             }
