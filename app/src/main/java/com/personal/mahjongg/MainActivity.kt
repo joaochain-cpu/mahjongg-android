@@ -74,7 +74,7 @@ private fun layout(): List<Spot> {
     MaterialTheme {
         BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF000080))) {
             val w=constraints.maxWidth.toFloat(); val h=constraints.maxHeight.toFloat()
-            val tw=w/15.5f; val th=tw*1.28f
+            val tw=min(w/15.5f, h/18.5f); val th=tw*1.28f
             val left=(w-tw*14)/2f
             val boardTop=th*1.55f
             Canvas(Modifier.fillMaxSize().pointerInput(tiles,gone,selected,tw,th){detectTapGestures { p ->
