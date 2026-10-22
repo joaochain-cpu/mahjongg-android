@@ -35,6 +35,10 @@ def get_tis():
 def palette_from(data):
     # The original file stores a 16-color VGA palette as ASCII RGB triples at the end.
     tail = data[32 + TILE_COUNT * RECORD_SIZE:]
+    # The final palette block is prefixed by the legacy marker bytes 0x77, 0x02.
+    marker = tail.rfind(b"w\\x02")
+    if marker >= 0:
+        tail = tail[marker + 2:]
     triples = re.findall(rb"(?m)^\s*(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})\s*\r?$", tail)
     if len(triples) < 16:
         raise RuntimeError(f"Could not parse 16-color palette (found {len(triples)} entries)")
