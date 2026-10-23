@@ -36,15 +36,22 @@ class MainActivity : ComponentActivity() {
 private data class Spot(val col:Int, val row:Int, val layer:Int=0)
 private data class Tile(val id:Int, val face:Int, val spot:Spot)
 private fun boardLayout():List<Spot> {
+    // A compact, stepped "dragon" layout: broad base, side wings and four
+    // progressively smaller raised levels. Coordinates are shared by layers
+    // so the cover/free rules work on the same grid as the drawing.
     val out=mutableListOf<Spot>()
-    for (r in 0 until 10) for (c in 0 until 12) out.add(Spot(c,r,0))
-    for (r in 3..6) for (c in 3..8) out.add(Spot(c,r,1))
-    for (r in 4..5) for (c in 4..7) out.add(Spot(c,r,2))
-    return out.take(144)
+    for (r in 0..7) for (c in 1..12) out.add(Spot(c,r,0)) // 96
+    for (r in 2..5) { out.add(Spot(0,r,0)); out.add(Spot(13,r,0)) } // +8 = 104
+    for (r in 2..5) for (c in 4..9) out.add(Spot(c,r,1)) // +24 = 128
+    for (r in 3..4) for (c in 5..8) out.add(Spot(c,r,2)) // +8 = 136
+    for (r in 3..4) for (c in 6..7) out.add(Spot(c,r,3)) // +4 = 140
+    for (r in 3..4) for (c in 6..7) out.add(Spot(c,r,4)) // +4 = 144
+    return out
 }
 private fun makeDeal(spots:List<Spot>):List<Tile> {
-    val faces=(0 until 36).flatMap { listOf(it,it,it,it) }.shuffled()
-    return spots.mapIndexed { i,s -> Tile(i,faces[i],s) }
+    // 34 ordinary faces x 4, plus 8 single flowers/seasons = 144 tiles.
+    val faces=(0 until 34).flatMap { listOf(it,it,it,it) } + (34 until 42).toList()
+    return spots.mapIndexed { i,s -> Tile(i,faces.shuffled()[i],s) }
 }
 @Composable private fun Game() {
     val context=LocalContext.current
@@ -99,15 +106,15 @@ private fun makeDeal(spots:List<Spot>):List<Tile> {
             Canvas(Modifier.weight(1f).fillMaxWidth().pointerInput(tiles,removed,selected) {
                 detectTapGestures { p ->
                     val w=size.width; val h=size.height
-                    val tileW=min(w/12.9f,h/15.0f)
-                    val tileH=tileW*1.22f
-                    val stepX=tileW*0.91f; val stepY=tileH*0.77f
-                    val boardW=11*stepX+tileW; val left=(w-boardW)/2f
-                    val boardH=9*stepY+tileH; val top=(h-boardH)/2f
+                    val tileW=min(w/14.2f,h/11.2f)
+                    val tileH=tileW*1.25f
+                    val stepX=tileW*0.91f; val stepY=tileH*0.80f
+                    val boardW=13*stepX+tileW; val left=(w-boardW)/2f
+                    val boardH=7*stepY+tileH; val top=(h-boardH)/2f
                     val hit=tiles.sortedWith(compareBy<Tile>{it.spot.layer}.thenBy{it.spot.row}.thenBy{it.spot.col}).asReversed().firstOrNull { t ->
                         if(t.id in removed) false else {
-                            val x=left+t.spot.col*stepX-t.spot.layer*tileW*.11f
-                            val y=top+t.spot.row*stepY-t.spot.layer*tileH*.14f
+                            val x=left+t.spot.col*stepX-t.spot.layer*tileW*.035f
+                            val y=top+t.spot.row*stepY-t.spot.layer*tileH*.045f
                             p.x>=x && p.x<=x+tileW && p.y>=y && p.y<=y+tileH
                         }
                     }
@@ -116,14 +123,14 @@ private fun makeDeal(spots:List<Spot>):List<Tile> {
             }) {
                 val c=drawContext.canvas.nativeCanvas
                 val p=Paint(Paint.ANTI_ALIAS_FLAG)
-                val tileW=min(size.width/12.9f,size.height/15.0f)
-                val tileH=tileW*1.22f; val stepX=tileW*.91f; val stepY=tileH*.77f
-                val boardW=11*stepX+tileW; val left=(size.width-boardW)/2f
-                val boardH=9*stepY+tileH; val top=(size.height-boardH)/2f
+                val tileW=min(size.width/14.2f,size.height/11.2f)
+                val tileH=tileW*1.25f; val stepX=tileW*.91f; val stepY=tileH*.80f
+                val boardW=13*stepX+tileW; val left=(size.width-boardW)/2f
+                val boardH=7*stepY+tileH; val top=(size.height-boardH)/2f
                 tiles.sortedWith(compareBy<Tile>{it.spot.layer}.thenBy{it.spot.row}.thenBy{it.spot.col}).forEach { t ->
                     if(t.id in removed) return@forEach
-                    val x=left+t.spot.col*stepX-t.spot.layer*tileW*.11f
-                    val y=top+t.spot.row*stepY-t.spot.layer*tileH*.14f
+                    val x=left+t.spot.col*stepX-t.spot.layer*tileW*.035f
+                    val y=top+t.spot.row*stepY-t.spot.layer*tileH*.045f
                     p.style=Paint.Style.FILL
                     p.color=android.graphics.Color.rgb(16,27,22)
                     c.drawRoundRect(RectF(x+tileW*.09f,y+tileH*.11f,x+tileW*1.08f,y+tileH*1.09f),tileW*.08f,tileW*.08f,p)
