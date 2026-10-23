@@ -6,7 +6,7 @@ plugins {
 android {
     namespace = "com.personal.mahjongg"
     compileSdk = 35
-    defaultConfig { applicationId = "com.personal.mahjongg"; minSdk = 23; targetSdk = 35; versionCode = 1; versionName = "0.1" }
+    defaultConfig { applicationId = "com.personal.mahjongg.medieval"; minSdk = 23; targetSdk = 32; versionCode = 2; versionName = "0.2" }
     buildFeatures { compose = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
