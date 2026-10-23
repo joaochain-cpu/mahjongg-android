@@ -22,7 +22,7 @@ dependencies {
 
 val generateMedievalTiles by tasks.registering(Exec::class) {
     workingDir(rootProject.projectDir)
-    commandLine("bash", "-lc", "python3 -m venv .venv && .venv/bin/pip install --quiet Pillow && .venv/bin/python tools/decode_medieval_tis.py")
+    commandLine("python3", "tools/decode_medieval_tis.py")
 }
 tasks.named("preBuild").configure {
     dependsOn(generateMedievalTiles)
