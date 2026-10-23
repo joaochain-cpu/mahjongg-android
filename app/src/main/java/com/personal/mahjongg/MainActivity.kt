@@ -101,7 +101,7 @@ private fun makeDeal(spots:List<Spot>):List<Tile> {
     }
     fun restart() { tiles=makeDeal(spots); removed=emptySet(); selected=-1; seconds=0; message="New game — tap a free tile" }
     MaterialTheme {
-        Column(Modifier.fillMaxSize().background(Color(0xFF164C36)).padding(horizontal=6.dp, vertical=5.dp)) {
+        Column(Modifier.fillMaxSize().background(Color(0xFF000080)).padding(horizontal=4.dp, vertical=3.dp)) {
             Row(Modifier.fillMaxWidth().height(34.dp), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.SpaceBetween) {
                 Text("MAH JONGG",color=Color(0xFFFFE4A3),fontSize=17.sp)
                 Text((tiles.size-removed.size).toString()+" left  •  "+"%d:%02d".format(seconds/60,seconds%60),color=Color.White,fontSize=12.sp)
@@ -110,9 +110,9 @@ private fun makeDeal(spots:List<Spot>):List<Tile> {
             Canvas(Modifier.weight(1f).fillMaxWidth().pointerInput(tiles,removed,selected) {
                 detectTapGestures { p ->
                     val w=size.width; val h=size.height
-                    val tileW=min(w/14.2f,h/11.2f)
+                    val tileW=min(w/13.8f,h/8.25f)
                     val tileH=tileW*1.25f
-                    val stepX=tileW*0.91f; val stepY=tileH*0.80f
+                    val stepX=tileW*0.96f; val stepY=tileH*0.80f
                     val boardW=13*stepX+tileW; val left=(w-boardW)/2f
                     val boardH=7*stepY+tileH; val top=(h-boardH)/2f
                     val hit=tiles.sortedWith(compareBy<Tile>{it.spot.layer}.thenBy{it.spot.row}.thenBy{it.spot.col}).asReversed().firstOrNull { t ->
@@ -127,8 +127,8 @@ private fun makeDeal(spots:List<Spot>):List<Tile> {
             }) {
                 val c=drawContext.canvas.nativeCanvas
                 val p=Paint(Paint.ANTI_ALIAS_FLAG)
-                val tileW=min(size.width/14.2f,size.height/11.2f)
-                val tileH=tileW*1.25f; val stepX=tileW*.91f; val stepY=tileH*.80f
+                val tileW=min(size.width/13.8f,size.height/8.25f)
+                val tileH=tileW*1.25f; val stepX=tileW*.96f; val stepY=tileH*.80f
                 val boardW=13*stepX+tileW; val left=(size.width-boardW)/2f
                 val boardH=7*stepY+tileH; val top=(size.height-boardH)/2f
                 tiles.sortedWith(compareBy<Tile>{it.spot.layer}.thenBy{it.spot.row}.thenBy{it.spot.col}).forEach { t ->
