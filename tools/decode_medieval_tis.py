@@ -11,7 +11,7 @@ import binascii
 
 URL = "https://archive.org/download/win3_MAHJONGG/MAHJONGG.ZIP"
 OUT = Path("app/src/main/res/drawable-nodpi")
-WIDTH, HEIGHT, TILE_COUNT, RECORD_SIZE = 48, 60, 44, 1446
+WIDTH, HEIGHT, TILE_COUNT, HEADER_SIZE, RECORD_SIZE, TILE_DATA_START = 48, 60, 44, 6, 1448, 96
 
 def load_tis():
     local = Path("MEDIEVAL.TIS")
@@ -37,10 +37,7 @@ def load_tis():
     raise RuntimeError("Could not find MEDIEVAL.TIS in the downloaded archive")
 
 def read_palette(data):
-    tail = data[32 + TILE_COUNT * RECORD_SIZE:]
-    marker = tail.rfind(bytes((0x77, 0x02)))
-    if marker >= 0:
-        tail = tail[marker + 2:]
+    tail = data[TILE_DATA_START + TILE_COUNT * RECORD_SIZE:]
     matches = re.findall(rb"(?m)^\s*(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})\s*\r?$", tail)
     if len(matches) < 15:
         raise RuntimeError(f"Could not parse palette; found {len(matches)} RGB entries")
@@ -66,13 +63,13 @@ def write_png(path, rgba_pixels):
 
 def main():
     data = load_tis()
-    minimum = 32 + TILE_COUNT * RECORD_SIZE
+    minimum = TILE_DATA_START + TILE_COUNT * RECORD_SIZE + 2
     if len(data) < minimum:
         raise RuntimeError(f"MEDIEVAL.TIS is truncated ({len(data)} bytes)")
     palette = read_palette(data)
     OUT.mkdir(parents=True, exist_ok=True)
     for tile in range(TILE_COUNT):
-        start = 32 + tile * RECORD_SIZE + 6
+        start = TILE_DATA_START + tile * RECORD_SIZE + HEADER_SIZE
         planes = data[start:start + 1440]
         if len(planes) != 1440:
             raise RuntimeError(f"Tile {tile} is truncated")
@@ -86,7 +83,7 @@ def main():
                 index = 0
                 for plane in range(4):
                     if row[plane * 6 + byte_index] & mask:
-                        index |= 1 << (3 - plane)
+                        index |= 1 << plane
                 pixels.append(palette[index])
         write_png(OUT / f"medieval_{tile:02d}.png", pixels)
     print(f"Generated {TILE_COUNT} original medieval tile images in {OUT}", flush=True)
