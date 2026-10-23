@@ -1,8 +1,7 @@
 package com.personal.mahjongg
 
-import android.graphics.Paint
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Paint
 import android.graphics.RectF
 import android.media.AudioManager
 import android.media.ToneGenerator
@@ -21,12 +20,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
-import kotlin.math.abs
 import kotlin.math.min
 
 class MainActivity : ComponentActivity() {
@@ -37,126 +33,129 @@ class MainActivity : ComponentActivity() {
         setContent { Game() }
     }
 }
-private data class Spot(val x: Int, val y: Int, val z: Int = 0)
-private data class Tile(val id: Int, val pair: Int, val art: Int, val spot: Spot)
-private fun layout(): List<Spot> {
-    val a = mutableListOf<Spot>()
-    val rows = listOf(10,12,14,14,14,14,14,14,12,10)
-    rows.forEachIndexed { y,n -> val start=(14-n)/2; repeat(n) { x -> a.add(Spot(start+x,y)) } }
-    for (y in 3..6) for (x in 5..8) a.add(Spot(x,y,1))
-    return a.take(144)
+private data class Spot(val col:Int, val row:Int, val layer:Int=0)
+private data class Tile(val id:Int, val face:Int, val spot:Spot)
+private fun boardLayout():List<Spot> {
+    val out=mutableListOf<Spot>()
+    for (r in 0 until 10) for (c in 0 until 12) out.add(Spot(c,r,0))
+    for (r in 3..6) for (c in 3..8) out.add(Spot(c,r,1))
+    for (r in 4..5) for (c in 4..7) out.add(Spot(c,r,2))
+    return out.take(144)
+}
+private fun makeDeal(spots:List<Spot>):List<Tile> {
+    val faces=(0 until 36).flatMap { listOf(it,it,it,it) }.shuffled()
+    return spots.mapIndexed { i,s -> Tile(i,faces[i],s) }
 }
 @Composable private fun Game() {
-    val context = LocalContext.current
-    val tileBitmaps = remember(context) { (0 until 44).associateWith { art ->
-        val id = context.resources.getIdentifier("medieval_%02d".format(art), "drawable", context.packageName)
-        if (id != 0) BitmapFactory.decodeResource(context.resources, id) else null
+    val context=LocalContext.current
+    val art=remember(context) { (0 until 44).associateWith { n ->
+        val id=context.resources.getIdentifier("medieval_%02d".format(n),"drawable",context.packageName)
+        if(id!=0) BitmapFactory.decodeResource(context.resources,id) else null
     } }
-    val spots = remember { layout() }
-    var tiles by remember { mutableStateOf(deal(spots)) }
-    var gone by remember { mutableStateOf(setOf<Int>()) }
+    val spots=remember { boardLayout() }
+    var tiles by remember { mutableStateOf(makeDeal(spots)) }
+    var removed by remember { mutableStateOf(setOf<Int>()) }
     var selected by remember { mutableIntStateOf(-1) }
-    var secs by remember { mutableIntStateOf(0) }
+    var seconds by remember { mutableIntStateOf(0) }
     var sound by remember { mutableStateOf(true) }
-    var message by remember { mutableStateOf("") }
-    var zoom by remember { mutableStateOf(true) }
-    LaunchedEffect(gone.size) { while (gone.size < 144) { delay(1000); secs++ } }
-    fun beep() { if(sound) try { ToneGenerator(AudioManager.STREAM_MUSIC,35).startTone(ToneGenerator.TONE_PROP_BEEP,50) } catch (_:Exception) {} }
-    fun free(t: Tile): Boolean {
-        if (t.id in gone) return false
-        val covered = tiles.any { o -> o.id !in gone && o.spot.z>t.spot.z && abs(o.spot.x-t.spot.x)<1 && abs(o.spot.y-t.spot.y)<1 }
+    var message by remember { mutableStateOf("Tap a free tile, then its match") }
+    LaunchedEffect(removed.size) { while(removed.size<tiles.size) { delay(1000); seconds++ } }
+    fun beep() { if(sound) try { ToneGenerator(AudioManager.STREAM_MUSIC,35).startTone(ToneGenerator.TONE_PROP_BEEP,45) } catch (_:Exception) {} }
+    fun isFree(t:Tile):Boolean {
+        if(t.id in removed) return false
+        val covered=tiles.any { o -> o.id !in removed && o.spot.layer>t.spot.layer && o.spot.col==t.spot.col && o.spot.row==t.spot.row }
         if(covered) return false
-        val same=tiles.filter { it.id !in gone && it.id!=t.id && it.spot.y==t.spot.y && it.spot.z==t.spot.z }
-        val left=same.any { it.spot.x==t.spot.x-1 }; val right=same.any { it.spot.x==t.spot.x+1 }
+        val peers=tiles.filter { o -> o.id !in removed && o.id!=t.id && o.spot.layer==t.spot.layer && o.spot.row==t.spot.row }
+        val left=peers.any { it.spot.col==t.spot.col-1 }
+        val right=peers.any { it.spot.col==t.spot.col+1 }
         return !left || !right
     }
-    fun tap(id:Int) {
-        val t=tiles[id]
-        if(!free(t)){ message="BLOCKED"; beep(); return }
-        if(selected<0){selected=id;message="";beep();return}
-        if(selected==id){selected=-1;return}
-        if(tiles[selected].pair==t.pair){gone=gone+selected+id;selected=-1;message=if(gone.size==144)"YOU WIN!" else "";beep()}
-        else {selected=id;beep()}
+    fun choose(id:Int) {
+        val t=tiles.firstOrNull { it.id==id } ?: return
+        if(!isFree(t)) { message="Blocked: clear a tile beside it or above it"; beep(); return }
+        if(selected==id) { selected=-1; message="Selection cleared"; return }
+        if(selected<0 || selected !in tiles.indices || selected in removed) {
+            selected=id; message="Now tap a matching free tile"; beep(); return
+        }
+        val previous=tiles[selected]
+        if(previous.face==t.face) {
+            removed=removed+previous.id+t.id
+            selected=-1
+            message=if(removed.size==tiles.size) "You win!" else "Matched!"
+        } else {
+            selected=id
+            message="Different tile — find the same picture"
+        }
+        beep()
     }
-    fun reset(){tiles=deal(spots);gone=emptySet();selected=-1;secs=0;message=""}
+    fun restart() { tiles=makeDeal(spots); removed=emptySet(); selected=-1; seconds=0; message="New game — tap a free tile" }
     MaterialTheme {
-        BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF000080))) {
-            val w=constraints.maxWidth.toFloat(); val h=constraints.maxHeight.toFloat()
-            val tw=min(w/15.5f, h/18.5f); val th=tw*1.28f
-            val left=(w-tw*14)/2f
-            val boardTop=th*1.55f
-            Canvas(Modifier.fillMaxSize().pointerInput(tiles,gone,selected,tw,th){detectTapGestures { p ->
-                tiles.sortedBy { it.spot.z }.asReversed().firstOrNull { t ->
-                    t.id !in gone && p.x>=left+t.spot.x*tw+t.spot.z*tw*.12f && p.x<=left+(t.spot.x+1)*tw+t.spot.z*tw*.12f &&
-                    p.y>=boardTop+t.spot.y*th*.75f-t.spot.z*th*.12f && p.y<=boardTop+(t.spot.y*.75f*th+th-t.spot.z*th*.12f)
-                }?.let { tap(it.id) }
-            }}) {
+        Column(Modifier.fillMaxSize().background(Color(0xFF164C36)).padding(horizontal=6.dp, vertical=5.dp)) {
+            Row(Modifier.fillMaxWidth().height(34.dp), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.SpaceBetween) {
+                Text("MAH JONGG",color=Color(0xFFFFE4A3),fontSize=17.sp)
+                Text((tiles.size-removed.size).toString()+" left  •  "+"%d:%02d".format(seconds/60,seconds%60),color=Color.White,fontSize=12.sp)
+            }
+            Text(message,color=Color(0xFFFFE4A3),fontSize=12.sp,modifier=Modifier.padding(bottom=3.dp))
+            Canvas(Modifier.weight(1f).fillMaxWidth().pointerInput(tiles,removed,selected) {
+                detectTapGestures { p ->
+                    val w=size.width; val h=size.height
+                    val tileW=min(w/12.9f,h/15.0f)
+                    val tileH=tileW*1.22f
+                    val stepX=tileW*0.91f; val stepY=tileH*0.77f
+                    val boardW=11*stepX+tileW; val left=(w-boardW)/2f
+                    val boardH=9*stepY+tileH; val top=(h-boardH)/2f
+                    val hit=tiles.sortedWith(compareBy<Tile>{it.spot.layer}.thenBy{it.spot.row}.thenBy{it.spot.col}).asReversed().firstOrNull { t ->
+                        if(t.id in removed) false else {
+                            val x=left+t.spot.col*stepX-t.spot.layer*tileW*.11f
+                            val y=top+t.spot.row*stepY-t.spot.layer*tileH*.14f
+                            p.x>=x && p.x<=x+tileW && p.y>=y && p.y<=y+tileH
+                        }
+                    }
+                    if(hit!=null) choose(hit.id)
+                }
+            }) {
                 val c=drawContext.canvas.nativeCanvas
                 val p=Paint(Paint.ANTI_ALIAS_FLAG)
-                tiles.sortedWith(compareBy<Tile>{it.spot.z}.thenBy{it.spot.y}.thenBy{it.spot.x}).forEach { t ->
-                    if(t.id in gone)return@forEach
-                    val x=left+t.spot.x*tw+t.spot.z*tw*.12f; val y=boardTop+t.spot.y*th*.75f-t.spot.z*th*.12f
-                    p.color=android.graphics.Color.rgb(35,40,52); c.drawRoundRect(RectF(x+tw*.09f,y+th*.07f,x+tw*1.08f,y+th*1.08f),3f,3f,p)
-                    p.color=if(t.id==selected) android.graphics.Color.YELLOW else android.graphics.Color.rgb(176,184,188)
-                    c.drawRect(x-1,y-1,x+tw+1,y+th+1,p)
-                    p.color=android.graphics.Color.rgb(202,202,190);c.drawRect(x,y,x+tw,y+th,p)
-                    p.color=android.graphics.Color.rgb(238,234,215);c.drawRect(x+tw*.07f,y+th*.035f,x+tw*.93f,y+th*.965f,p)
-                    p.color=android.graphics.Color.rgb(232,225,199);c.drawRect(x+tw*.09f,y+th*.05f,x+tw*.91f,y+th*.95f,p)
-                    val originalArt = tileBitmaps[t.art]
-                    if (originalArt != null) {
-                        c.drawBitmap(originalArt, null, RectF(x+tw*.08f,y+th*.05f,x+tw*.92f,y+th*.95f), p)
-                    } else {
-                        p.color=heraldicColor(t.art)
-                        p.style=Paint.Style.STROKE;p.strokeWidth=tw*.055f;c.drawRect(x+tw*.16f,y+th*.12f,x+tw*.84f,y+th*.88f,p);p.style=Paint.Style.FILL
-                        p.textAlign=Paint.Align.CENTER;p.typeface=android.graphics.Typeface.create("serif",android.graphics.Typeface.BOLD);p.textSize=tw*.44f
-                        c.drawText(symbolsFor(t.art),x+tw/2,y+th*.60f,p)
+                val tileW=min(size.width/12.9f,size.height/15.0f)
+                val tileH=tileW*1.22f; val stepX=tileW*.91f; val stepY=tileH*.77f
+                val boardW=11*stepX+tileW; val left=(size.width-boardW)/2f
+                val boardH=9*stepY+tileH; val top=(size.height-boardH)/2f
+                tiles.sortedWith(compareBy<Tile>{it.spot.layer}.thenBy{it.spot.row}.thenBy{it.spot.col}).forEach { t ->
+                    if(t.id in removed) return@forEach
+                    val x=left+t.spot.col*stepX-t.spot.layer*tileW*.11f
+                    val y=top+t.spot.row*stepY-t.spot.layer*tileH*.14f
+                    p.style=Paint.Style.FILL
+                    p.color=android.graphics.Color.rgb(16,27,22)
+                    c.drawRoundRect(RectF(x+tileW*.09f,y+tileH*.11f,x+tileW*1.08f,y+tileH*1.09f),tileW*.08f,tileW*.08f,p)
+                    p.color=when(t.spot.layer) { 0 -> android.graphics.Color.rgb(112,78,43); 1 -> android.graphics.Color.rgb(213,171,73); else -> android.graphics.Color.rgb(220,225,231) }
+                    c.drawRoundRect(RectF(x,y,x+tileW,y+tileH),tileW*.06f,tileW*.06f,p)
+                    p.color=when(t.spot.layer) { 0 -> android.graphics.Color.rgb(241,225,183); 1 -> android.graphics.Color.rgb(255,244,202); else -> android.graphics.Color.rgb(248,250,244) }
+                    c.drawRoundRect(RectF(x+tileW*.055f,y+tileH*.035f,x+tileW*.945f,y+tileH*.94f),tileW*.045f,tileW*.045f,p)
+                    val bmp=art[t.face]
+                    if(bmp!=null) c.drawBitmap(bmp,null,RectF(x+tileW*.10f,y+tileH*.08f,x+tileW*.90f,y+tileH*.88f),p)
+                    else { p.color=android.graphics.Color.DKGRAY; p.textAlign=Paint.Align.CENTER; p.textSize=tileW*.42f; c.drawText("✦",x+tileW/2,y+tileH*.62f,p) }
+                    if(t.id==selected) {
+                        p.style=Paint.Style.STROKE; p.strokeWidth=tileW*.10f; p.color=android.graphics.Color.rgb(255,65,40)
+                        c.drawRoundRect(RectF(x+2,y+2,x+tileW-2,y+tileH-2),tileW*.06f,tileW*.06f,p); p.style=Paint.Style.FILL
+                    } else if(!isFree(t)) {
+                        p.color=android.graphics.Color.argb(85,30,35,32)
+                        c.drawRoundRect(RectF(x+tileW*.055f,y+tileH*.035f,x+tileW*.945f,y+tileH*.94f),tileW*.045f,tileW*.045f,p)
                     }
-                    if(!free(t)){p.color=android.graphics.Color.argb(28,0,0,0);c.drawRect(x,y,x+tw,y+th,p)}
-                }
-                // Zoom lens for the selected tile.
-                val chosen = tiles.firstOrNull { it.id == selected && it.id !in gone }
-                if (zoom && chosen != null) {
-                    val lensW = min(w * .42f, 260f)
-                    val lensH = lensW * 1.12f
-                    val lx = (w - lensW) / 2f
-                    val ly = h * .39f
-                    p.style = Paint.Style.FILL
-                    p.color = android.graphics.Color.argb(238, 20, 24, 37)
-                    c.drawRoundRect(RectF(lx-8,ly-8,lx+lensW+8,ly+lensH+8),12f,12f,p)
-                    p.color = android.graphics.Color.rgb(188,188,174)
-                    c.drawRect(lx,ly,lx+lensW,ly+lensH,p)
-                    p.color = android.graphics.Color.rgb(239,233,211)
-                    c.drawRect(lx+8,ly+8,lx+lensW-8,ly+lensH-8,p)
-                    val zoomArt = tileBitmaps[chosen.art]
-                    if (zoomArt != null) {
-                        c.drawBitmap(zoomArt, null, RectF(lx+10,ly+10,lx+lensW-10,ly+lensH-10), p)
-                    } else {
-                        p.color = heraldicColor(chosen.art)
-                        p.style = Paint.Style.STROKE
-                        p.strokeWidth = 6f
-                        c.drawRect(lx+18,ly+18,lx+lensW-18,ly+lensH-18,p)
-                        p.style = Paint.Style.FILL
-                        p.textAlign = Paint.Align.CENTER
-                        p.typeface = android.graphics.Typeface.create("serif",android.graphics.Typeface.BOLD)
-                        p.textSize = lensW*.44f
-                        c.drawText(symbolsFor(chosen.art),lx+lensW/2,ly+lensH*.63f,p)
+                    if(t.spot.layer>0) {
+                        p.color=android.graphics.Color.rgb(35,55,43); c.drawCircle(x+tileW*.17f,y+tileH*.84f,tileW*.105f,p)
+                        p.color=android.graphics.Color.WHITE; p.textAlign=Paint.Align.CENTER; p.textSize=tileW*.15f
+                        c.drawText((t.spot.layer+1).toString(),x+tileW*.17f,y+tileH*.89f,p)
                     }
-                    p.textSize = lensW*.075f
-                    p.color = android.graphics.Color.WHITE
-                    c.drawText("ZOOM • tap another tile",lx+lensW/2,ly+lensH*.91f,p)
                 }
             }
-            Column(Modifier.align(Alignment.TopStart).padding(start=8.dp,top=38.dp)){Text("Tiles Left:",color=Color.White,fontSize=12.sp,fontFamily=FontFamily.Serif,fontWeight=FontWeight.Bold);Text("${144-gone.size}",color=Color.White,fontSize=12.sp,fontFamily=FontFamily.Serif)}
-            Column(Modifier.align(Alignment.TopEnd).padding(end=8.dp,top=38.dp)){Text("Time:",color=Color.White,fontSize=12.sp,fontFamily=FontFamily.Serif,fontWeight=FontWeight.Bold);Text("%d:%02d".format(secs/60,secs%60),color=Color.White,fontSize=12.sp,fontFamily=FontFamily.Serif)}
-            Column(Modifier.align(Alignment.TopCenter).padding(top=6.dp), horizontalAlignment=Alignment.CenterHorizontally){Text("MAH JONGG",color=Color(0xFFB8C6FF),fontSize=15.sp,fontFamily=FontFamily.Serif,fontWeight=FontWeight.Bold)}
-            Row(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal=6.dp, vertical=8.dp), horizontalArrangement=Arrangement.SpaceEvenly, verticalAlignment=Alignment.CenterVertically){TextButton(onClick={sound=!sound}){Text(if(sound)"Sound On" else "Sound Off",color=Color.White,fontSize=11.sp)};TextButton(onClick={reset()}){Text("New Game",color=Color.White,fontSize=11.sp)};TextButton(onClick={ val first=tiles.firstOrNull{it.id !in gone && free(it)}; if(first!=null){selected=first.id; message="Pair hint: find matching symbol"} }){Text("Hint",color=Color.White,fontSize=11.sp)}}
-            if(message.isNotEmpty())Text(message,Modifier.align(Alignment.BottomCenter),color=Color.White,fontSize=12.sp)
+            Row(Modifier.fillMaxWidth().height(44.dp),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically) {
+                TextButton(onClick={sound=!sound}) { Text(if(sound) "Sound on" else "Sound off",color=Color.White,fontSize=12.sp) }
+                TextButton(onClick={restart()}) { Text("New game",color=Color(0xFFFFE4A3),fontSize=12.sp) }
+                TextButton(onClick={
+                    val first=tiles.firstOrNull { it.id !in removed && isFree(it) }
+                    if(first!=null) { selected=first.id; message="Hint: find another tile with this picture" }
+                }) { Text("Hint",color=Color.White,fontSize=12.sp) }
+            }
         }
     }
-}
-private fun heraldicColor(art:Int):Int = intArrayOf(0xFF633E2E.toInt(),0xFF7B3345.toInt(),0xFF4F6044.toInt(),0xFF8A6236.toInt(),0xFF4D3D5B.toInt(),0xFF6D6A52.toInt())[art%6]
-private fun symbolsFor(art:Int):String = listOf("♜","♞","♖","♘","⚔","♛","♚","♝","✠","⚜","♙","♕","♖","♘")[art%14]
-private fun deal(spots:List<Spot>):List<Tile>{
-    val pairs=(0 until spots.size/2).flatMap{listOf(it,it)}.shuffled()
-    return spots.mapIndexed{i,s->Tile(i,pairs[i],pairs[i]%44,s)}
 }
