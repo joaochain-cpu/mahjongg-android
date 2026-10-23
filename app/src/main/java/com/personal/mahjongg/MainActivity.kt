@@ -1,5 +1,6 @@
 package com.personal.mahjongg
 
+import android.content.pm.ActivityInfo
 import android.graphics.BitmapFactory
 import android.graphics.Paint
 import android.graphics.RectF
@@ -28,6 +29,7 @@ import kotlin.math.min
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = (android.view.View.SYSTEM_UI_FLAG_FULLSCREEN or android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
         setContent { Game() }
@@ -110,9 +112,9 @@ private fun makeDeal(spots:List<Spot>):List<Tile> {
             Canvas(Modifier.weight(1f).fillMaxWidth().pointerInput(tiles,removed,selected) {
                 detectTapGestures { p ->
                     val w=size.width; val h=size.height
-                    val tileW=min(w/13.8f,h/8.25f)
+                    val tileW=min(w/12.83f,h/8.075f)
                     val tileH=tileW*1.25f
-                    val stepX=tileW*0.96f; val stepY=tileH*0.80f
+                    val stepX=tileW*0.91f; val stepY=tileH*0.78f
                     val boardW=13*stepX+tileW; val left=(w-boardW)/2f
                     val boardH=7*stepY+tileH; val top=(h-boardH)/2f
                     val hit=tiles.sortedWith(compareBy<Tile>{it.spot.layer}.thenBy{it.spot.row}.thenBy{it.spot.col}).asReversed().firstOrNull { t ->
@@ -127,8 +129,8 @@ private fun makeDeal(spots:List<Spot>):List<Tile> {
             }) {
                 val c=drawContext.canvas.nativeCanvas
                 val p=Paint(Paint.ANTI_ALIAS_FLAG)
-                val tileW=min(size.width/13.8f,size.height/8.25f)
-                val tileH=tileW*1.25f; val stepX=tileW*.96f; val stepY=tileH*.80f
+                val tileW=min(size.width/12.83f,size.height/8.075f)
+                val tileH=tileW*1.25f; val stepX=tileW*.91f; val stepY=tileH*.78f
                 val boardW=13*stepX+tileW; val left=(size.width-boardW)/2f
                 val boardH=7*stepY+tileH; val top=(size.height-boardH)/2f
                 tiles.sortedWith(compareBy<Tile>{it.spot.layer}.thenBy{it.spot.row}.thenBy{it.spot.col}).forEach { t ->
@@ -151,9 +153,6 @@ private fun makeDeal(spots:List<Spot>):List<Tile> {
                     if(t.id==selected) {
                         p.style=Paint.Style.STROKE; p.strokeWidth=tileW*.10f; p.color=android.graphics.Color.rgb(255,65,40)
                         c.drawRoundRect(RectF(x+2,y+2,x+tileW-2,y+tileH-2),tileW*.06f,tileW*.06f,p); p.style=Paint.Style.FILL
-                    } else if(!isFree(t)) {
-                        p.color=android.graphics.Color.argb(85,30,35,32)
-                        c.drawRoundRect(RectF(x+tileW*.055f,y+tileH*.035f,x+tileW*.945f,y+tileH*.94f),tileW*.045f,tileW*.045f,p)
                     }
                 }
             }
