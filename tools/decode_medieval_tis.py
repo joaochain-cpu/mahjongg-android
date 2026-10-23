@@ -77,15 +77,16 @@ def main():
         if len(planes) != 1440:
             raise RuntimeError(f"Tile {tile} is truncated")
         pixels = []
-        # Four 1-bit planes are interleaved per scanline: 4 × 6 bytes × 60 rows.
+        # MEDIEVAL.TIS stores four contiguous 1-bit planes, 360 bytes per plane.
+        # Reading them as scanline-interleaved creates tile bleed and false colors.
+        plane_size = WIDTH * HEIGHT // 8
         for y in range(HEIGHT):
-            row = planes[y * 24:(y + 1) * 24]
             for x in range(WIDTH):
-                byte_index = x // 8
+                byte_index = y * (WIDTH // 8) + (x // 8)
                 mask = 1 << (7 - x % 8)
                 index = 0
                 for plane in range(4):
-                    if row[plane * 6 + byte_index] & mask:
+                    if planes[plane * plane_size + byte_index] & mask:
                         index |= 1 << plane
                 pixels.append(palette[index])
         write_png(OUT / f"medieval_{tile:02d}.png", pixels)
