@@ -5,6 +5,9 @@ from io import BytesIO
 from urllib.request import urlopen
 import re
 import zipfile
+import struct
+import zlib
+import binascii
 
 URL = "https://archive.org/download/win3_MAHJONGG/MAHJONGG.ZIP"
 OUT = Path("app/src/main/res/drawable-nodpi")
@@ -46,11 +49,22 @@ def read_palette(data):
         colors.append((255, 255, 255, 255))
     return colors
 
+def png_chunk(kind, payload):
+    body = kind + payload
+    return struct.pack(">I", len(payload)) + body + struct.pack(">I", binascii.crc32(body) & 0xffffffff)
+
+def write_png(path, rgba_pixels):
+    raw = bytearray()
+    for y in range(HEIGHT):
+        raw.append(0)  # PNG filter: None
+        for x in range(WIDTH):
+            raw.extend(rgba_pixels[y * WIDTH + x])
+    header = struct.pack(">IIBBBBB", WIDTH, HEIGHT, 8, 6, 0, 0, 0)
+    png = b"\x89PNG\r\n\x1a\n" + png_chunk(b"IHDR", header)
+    png += png_chunk(b"IDAT", zlib.compress(bytes(raw), 9)) + png_chunk(b"IEND", b"")
+    path.write_bytes(png)
+
 def main():
-    try:
-        from PIL import Image
-    except ImportError as exc:
-        raise RuntimeError("Pillow is required to decode the original tile art") from exc
     data = load_tis()
     minimum = 32 + TILE_COUNT * RECORD_SIZE
     if len(data) < minimum:
@@ -74,9 +88,7 @@ def main():
                     if row[plane * 6 + byte_index] & mask:
                         index |= 1 << plane
                 pixels.append(palette[index])
-        image = Image.new("RGBA", (WIDTH, HEIGHT))
-        image.putdata(pixels)
-        image.save(OUT / f"medieval_{tile:02d}.png", optimize=True)
+        write_png(OUT / f"medieval_{tile:02d}.png", pixels)
     print(f"Generated {TILE_COUNT} original medieval tile images in {OUT}", flush=True)
 
 if __name__ == "__main__":
