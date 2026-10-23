@@ -6,7 +6,7 @@ from urllib.request import urlopen
 import re
 import zipfile
 
-URL = "https://archive.org/download/win3_MAHJONGG/win3_MAHJONGG.zip"
+URL = "https://archive.org/download/win3_MAHJONGG/MAHJONGG.ZIP"
 OUT = Path("app/src/main/res/drawable-nodpi")
 WIDTH, HEIGHT, TILE_COUNT, RECORD_SIZE = 48, 60, 44, 1446
 
