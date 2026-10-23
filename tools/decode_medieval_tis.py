@@ -83,7 +83,7 @@ def main():
                 index = 0
                 for plane in range(4):
                     if row[plane * 6 + byte_index] & mask:
-                        index |= 1 << plane
+                        index |= 1 << (3 - plane)
                 pixels.append(palette[index])
         write_png(OUT / f"medieval_{tile:02d}.png", pixels)
     print(f"Generated {TILE_COUNT} original medieval tile images in {OUT}", flush=True)
