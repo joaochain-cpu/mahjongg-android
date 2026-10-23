@@ -50,8 +50,8 @@ private fun boardLayout():List<Spot> {
 }
 private fun makeDeal(spots:List<Spot>):List<Tile> {
     // 34 ordinary faces x 4, plus 8 single flowers/seasons = 144 tiles.
-    val faces=(0 until 34).flatMap { listOf(it,it,it,it) } + (34 until 42).toList()
-    return spots.mapIndexed { i,s -> Tile(i,faces.shuffled()[i],s) }
+    val faces=((0 until 34).flatMap { listOf(it,it,it,it) } + (34 until 42).toList()).shuffled()
+    return spots.mapIndexed { i,s -> Tile(i,faces[i],s) }
 }
 @Composable private fun Game() {
     val context=LocalContext.current
@@ -85,13 +85,17 @@ private fun makeDeal(spots:List<Spot>):List<Tile> {
             selected=id; message="Now tap a matching free tile"; beep(); return
         }
         val previous=tiles[selected]
-        if(previous.face==t.face) {
+        val sameSpecialGroup = previous.face >= 34 && t.face >= 34 &&
+            ((previous.face in 34..37 && t.face in 34..37) ||
+             (previous.face in 38..41 && t.face in 38..41))
+        if(previous.face==t.face || sameSpecialGroup) {
             removed=removed+previous.id+t.id
             selected=-1
             message=if(removed.size==tiles.size) "You win!" else "Matched!"
         } else {
-            selected=id
-            message="Different tile — find the same picture"
+            selected=-1
+            message="Not a match — try again"
+            beep()
         }
         beep()
     }
