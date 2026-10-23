@@ -135,27 +135,25 @@ private fun makeDeal(spots:List<Spot>):List<Tile> {
                     if(t.id in removed) return@forEach
                     val x=left+t.spot.col*stepX-t.spot.layer*tileW*.035f
                     val y=top+t.spot.row*stepY-t.spot.layer*tileH*.045f
+                    // The TIS artwork includes the original tile face and edge.
+                    // Draw it edge-to-edge instead of adding modern rounded-card chrome.
                     p.style=Paint.Style.FILL
-                    p.color=android.graphics.Color.rgb(16,27,22)
-                    c.drawRoundRect(RectF(x+tileW*.09f,y+tileH*.11f,x+tileW*1.08f,y+tileH*1.09f),tileW*.08f,tileW*.08f,p)
-                    p.color=when(t.spot.layer) { 0 -> android.graphics.Color.rgb(112,78,43); 1 -> android.graphics.Color.rgb(213,171,73); else -> android.graphics.Color.rgb(220,225,231) }
-                    c.drawRoundRect(RectF(x,y,x+tileW,y+tileH),tileW*.06f,tileW*.06f,p)
-                    p.color=when(t.spot.layer) { 0 -> android.graphics.Color.rgb(241,225,183); 1 -> android.graphics.Color.rgb(255,244,202); else -> android.graphics.Color.rgb(248,250,244) }
-                    c.drawRoundRect(RectF(x+tileW*.055f,y+tileH*.035f,x+tileW*.945f,y+tileH*.94f),tileW*.045f,tileW*.045f,p)
                     val bmp=art[t.face]
-                    if(bmp!=null) c.drawBitmap(bmp,null,RectF(x+tileW*.10f,y+tileH*.08f,x+tileW*.90f,y+tileH*.88f),p)
-                    else { p.color=android.graphics.Color.DKGRAY; p.textAlign=Paint.Align.CENTER; p.textSize=tileW*.42f; c.drawText("✦",x+tileW/2,y+tileH*.62f,p) }
+                    if(bmp!=null) c.drawBitmap(bmp,null,RectF(x,y,x+tileW,y+tileH),p)
+                    else {
+                        p.color=android.graphics.Color.LTGRAY
+                        c.drawRect(RectF(x,y,x+tileW,y+tileH),p)
+                        p.color=android.graphics.Color.DKGRAY
+                        p.textAlign=Paint.Align.CENTER
+                        p.textSize=tileW*.42f
+                        c.drawText("?",x+tileW/2,y+tileH*.62f,p)
+                    }
                     if(t.id==selected) {
                         p.style=Paint.Style.STROKE; p.strokeWidth=tileW*.10f; p.color=android.graphics.Color.rgb(255,65,40)
                         c.drawRoundRect(RectF(x+2,y+2,x+tileW-2,y+tileH-2),tileW*.06f,tileW*.06f,p); p.style=Paint.Style.FILL
                     } else if(!isFree(t)) {
                         p.color=android.graphics.Color.argb(85,30,35,32)
                         c.drawRoundRect(RectF(x+tileW*.055f,y+tileH*.035f,x+tileW*.945f,y+tileH*.94f),tileW*.045f,tileW*.045f,p)
-                    }
-                    if(t.spot.layer>0) {
-                        p.color=android.graphics.Color.rgb(35,55,43); c.drawCircle(x+tileW*.17f,y+tileH*.84f,tileW*.105f,p)
-                        p.color=android.graphics.Color.WHITE; p.textAlign=Paint.Align.CENTER; p.textSize=tileW*.15f
-                        c.drawText((t.spot.layer+1).toString(),x+tileW*.17f,y+tileH*.89f,p)
                     }
                 }
             }
